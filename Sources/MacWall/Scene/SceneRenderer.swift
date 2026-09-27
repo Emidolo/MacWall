@@ -10,14 +10,16 @@ enum SceneSupport {
 
     static func unsupported(_ folder: URL) -> [String] {
         if let hit = cache[folder] { return hit }
-        let project = try? WallpaperProject(url: folder.appendingPathComponent("project.json"))
+        let props = Library.shared.items.first { $0.folder == folder }.map(AppSettings.shared.propertiesJSON(for:)) ?? "{}"
         let result = SceneAnalysis.unsupportedFeatures(SceneAssets(folder: folder, extraRoots: AppSettings.shared.assetRoots),
-                                                       props: UserProperties(json: project?.propertiesJSON ?? "{}"))
+                                                       props: UserProperties(json: props))
         cache[folder] = result
         return result
     }
 
-    static func invalidate() { cache = [:] }
+    static func invalidate(_ folder: URL? = nil) {
+        if let folder { cache[folder] = nil } else { cache = [:] }
+    }
 }
 
 /// Renders Wallpaper Engine scenes with Metal: image layers (z-order, transforms, blending),
@@ -67,15 +69,14 @@ final class SceneRenderer: NSObject, WallpaperRenderer, MTKViewDelegate {
     private var pointer = SIMD2<Float>(0.5, 0.5)   // smoothed, (0,0) = top-left
     private(set) var unsupported: [String] = []
 
-    init?(folder: URL, fps: Int, quality: Quality, assetRoots: [URL]) {
+    init?(folder: URL, propertiesJSON: String, fps: Int, quality: Quality, assetRoots: [URL]) {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
         let gpu: SceneGPU
         do { gpu = try SceneGPU.shared(device) } catch {
             NSLog("MacWall: scene shaders failed to compile: \(error)")
             return nil
         }
-        let project = try? WallpaperProject(url: folder.appendingPathComponent("project.json"))
-        let props = UserProperties(json: project?.propertiesJSON ?? "{}")
+        let props = UserProperties(json: propertiesJSON)
         let assets = SceneAssets(folder: folder, extraRoots: assetRoots)
         guard let data = assets.data("scene.json"), let doc = try? SceneDocument(data: data, props: props) else { return nil }
         self.gpu = gpu
@@ -117,6 +118,9 @@ final class SceneRenderer: NSObject, WallpaperRenderer, MTKViewDelegate {
     }
 
     func setVolume(_ volume: Float) {}
+
+    /// Properties feed layout, visibility and effects at load time, so edits rebuild the scene.
+    func applyUserProperties(_ changeJSON: String) -> Bool { false }
 
     func stop() {
         mtk.isPaused = true

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import MacWallKit
 
 final class WallpaperWindow: NSWindow {
     init(screen: NSScreen) {
@@ -90,6 +91,35 @@ final class WallpaperManager: ObservableObject {
         }
         slots.keys.filter { !live.contains($0) }.forEach(remove)
         applyPause()
+    }
+
+    /// Stores a property edit and applies it to every window showing that wallpaper.
+    func setProperty(_ w: Wallpaper, key: String, value: Any) {
+        settings.propertyOverrides[w.id, default: [:]][key] = value
+        SceneSupport.invalidate(w.folder)
+        let change = WallpaperProperties(json: w.project.propertiesJSON).changeJSON(key: key, value: value)
+        let needsRebuild = slots.values.filter { $0.wallpaperID == w.id }.contains { !$0.renderer.applyUserProperties(change) }
+        if needsRebuild { rebuildSoon(w.id) }
+    }
+
+    func resetProperties(_ w: Wallpaper) {
+        settings.propertyOverrides[w.id] = nil
+        SceneSupport.invalidate(w.folder)
+        rebuildSoon(w.id)
+    }
+
+    private var pendingRebuild: DispatchWorkItem?
+
+    /// Debounced so dragging a slider doesn't rebuild a scene on every tick.
+    private func rebuildSoon(_ id: String) {
+        pendingRebuild?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.slots.filter { $0.value.wallpaperID == id }.keys.forEach(self.remove)
+            self.reload()
+        }
+        pendingRebuild = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
     }
 
     private func remove(_ key: String) {

@@ -9,6 +9,12 @@ protocol WallpaperRenderer: AnyObject {
     func setPaused(_ paused: Bool)
     func setVolume(_ volume: Float)
     func stop()
+    /// Push one changed property (`{"key": {…, "value": v}}`); false = rebuild the renderer instead.
+    func applyUserProperties(_ changeJSON: String) -> Bool
+}
+
+extension WallpaperRenderer {
+    func applyUserProperties(_ changeJSON: String) -> Bool { true }
 }
 
 @MainActor
@@ -17,9 +23,9 @@ func makeRenderer(for w: Wallpaper, settings s: AppSettings) -> WallpaperRendere
     case .video:
         if let url = w.contentURL { return VideoRenderer(url: url, volume: s.volume, quality: s.quality) }
     case .web:
-        if let url = w.contentURL { return WebRenderer(index: url, folder: w.folder, propertiesJSON: w.project.propertiesJSON, fps: s.fpsLimit, volume: s.volume) }
+        if let url = w.contentURL { return WebRenderer(index: url, folder: w.folder, propertiesJSON: s.propertiesJSON(for: w), fps: s.fpsLimit, volume: s.volume) }
     case .scene:
-        if let r = SceneRenderer(folder: w.folder, fps: s.fpsLimit, quality: s.quality, assetRoots: s.assetRoots) { return r }
+        if let r = SceneRenderer(folder: w.folder, propertiesJSON: s.propertiesJSON(for: w), fps: s.fpsLimit, quality: s.quality, assetRoots: s.assetRoots) { return r }
     case .application, .unknown:
         break
     }
@@ -92,6 +98,11 @@ final class WebRenderer: NSObject, WallpaperRenderer, WKScriptMessageHandler {
     func setPaused(_ paused: Bool) {
         webView.evaluateJavaScript("window.__macwallPaused&&__macwallPaused(\(paused))")
         webView.setAllMediaPlaybackSuspended(paused)
+    }
+
+    func applyUserProperties(_ changeJSON: String) -> Bool {
+        webView.evaluateJavaScript("(function (l) { l && l.applyUserProperties && l.applyUserProperties(\(changeJSON)); })(window.wallpaperPropertyListener)")
+        return true
     }
 
     func setVolume(_ volume: Float) {

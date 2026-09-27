@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 SelfTest.capture(libraryWindow, to: URL(fileURLWithPath: dir).appendingPathComponent("library.png"))
                 SelfTest.capture(settingsWindow, to: URL(fileURLWithPath: dir).appendingPathComponent("settings.png"))
             }
+            SelfTest.editProperties(dir: dir)
         }
         #endif
     }

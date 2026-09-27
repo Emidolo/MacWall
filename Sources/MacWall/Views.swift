@@ -7,6 +7,7 @@ struct LibraryView: View {
     @State private var search = ""
     @State private var filter: WallpaperProject.Kind?
     @State private var showDownload = false
+    @State private var editing: Wallpaper?
     @State private var errorMessage: String?
 
     private var filtered: [Wallpaper] {
@@ -24,7 +25,7 @@ struct LibraryView: View {
                     .padding(.top, 80)
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
-                ForEach(filtered) { WallpaperCard(wallpaper: $0) }
+                ForEach(filtered) { w in WallpaperCard(wallpaper: w) { editing = w } }
             }
             .padding()
         }
@@ -41,6 +42,7 @@ struct LibraryView: View {
             Button("Download…", systemImage: "icloud.and.arrow.down") { showDownload = true }
         }
         .sheet(isPresented: $showDownload) { DownloadView() }
+        .sheet(item: $editing) { PropertiesView(wallpaper: $0) }
         .alert("Import failed", isPresented: .constant(errorMessage != nil)) {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
@@ -64,6 +66,7 @@ struct LibraryView: View {
 
 struct WallpaperCard: View {
     let wallpaper: Wallpaper
+    let onEditProperties: () -> Void
     @ObservedObject private var settings = AppSettings.shared
 
     private var isActive: Bool { settings.assignments.values.contains(wallpaper.id) }
@@ -103,6 +106,8 @@ struct WallpaperCard: View {
                     Button("Set on \(screen.localizedName)") { settings.assign(wallpaper.id, display: screen.uuid) }.disabled(!playable)
                 }
             }
+            Button("Properties…", action: onEditProperties)
+                .disabled(!WallpaperProperties(json: wallpaper.project.propertiesJSON).hasEditable)
             Divider()
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([wallpaper.folder]) }
             Button("Delete", role: .destructive) { Library.shared.delete(wallpaper) }
@@ -242,5 +247,80 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Edits a wallpaper's `general.properties`. Web wallpapers update live; scenes rebuild.
+struct PropertiesView: View {
+    let wallpaper: Wallpaper
+    private let props: WallpaperProperties
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var settings = AppSettings.shared
+
+    init(wallpaper: Wallpaper) {
+        self.wallpaper = wallpaper
+        props = WallpaperProperties(json: wallpaper.project.propertiesJSON)
+    }
+
+    private var values: [String: Any] { props.values(settings.propertyOverrides[wallpaper.id] ?? [:]) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section(wallpaper.title) {
+                    ForEach(props.visible(values)) { row($0) }
+                }
+            }
+            .formStyle(.grouped)
+            HStack {
+                Button("Reset to Defaults") { WallpaperManager.shared.resetProperties(wallpaper) }
+                    .disabled(settings.propertyOverrides[wallpaper.id] == nil)
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+            .padding([.horizontal, .bottom], 20)
+        }
+        .frame(width: 480, height: 520)
+    }
+
+    @ViewBuilder
+    private func row(_ p: WallpaperProperty) -> some View {
+        switch p.kind {
+        case .color:
+            ColorPicker(p.label, selection: Binding(
+                get: { let c = WallpaperProperties.rgb(values[p.key]); return Color(.sRGB, red: c[0], green: c[1], blue: c[2]) },
+                set: { color in
+                    guard let c = NSColor(color).usingColorSpace(.sRGB) else { return }
+                    set(p, WallpaperProperties.colorString([c.redComponent, c.greenComponent, c.blueComponent].map(Double.init)))
+                }), supportsOpacity: false)
+        case .slider:
+            let value = Binding(get: { (values[p.key] as? NSNumber)?.doubleValue ?? p.min },
+                                set: { set(p, p.step >= 1 ? $0.rounded() : $0) })
+            LabeledContent(p.label) {
+                HStack {
+                    Slider(value: value, in: p.min...max(p.max, p.min + p.step), step: p.step)
+                    Text(value.wrappedValue, format: .number.precision(.fractionLength(p.step >= 1 ? 0 : 2)))
+                        .monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+            }
+        case .bool:
+            Toggle(p.label, isOn: Binding(get: { (values[p.key] as? NSNumber)?.boolValue ?? false }, set: { set(p, $0) }))
+        case .combo:
+            Picker(p.label, selection: Binding(
+                get: { values[p.key].map { "\($0)" } ?? "" },
+                set: { tag in if let o = p.options.first(where: { "\($0.value)" == tag }) { set(p, o.value) } })) {
+                ForEach(p.options.indices, id: \.self) { i in Text(p.options[i].label).tag("\(p.options[i].value)") }
+            }
+        case .textinput:
+            TextField(p.label, text: Binding(get: { values[p.key].map { "\($0)" } ?? "" }, set: { set(p, $0) }))
+        case .text:
+            Text(p.label).font(.callout).foregroundStyle(.secondary)
+        case .other:
+            EmptyView()
+        }
+    }
+
+    private func set(_ p: WallpaperProperty, _ value: Any) {
+        WallpaperManager.shared.setProperty(wallpaper, key: p.key, value: value)
     }
 }

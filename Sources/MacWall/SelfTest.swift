@@ -2,6 +2,7 @@
 import AppKit
 import AVFoundation
 import WebKit
+import SwiftUI
 
 /// `MACWALL_SELFTEST=<dir> build/MacWall.app/Contents/MacOS/MacWall` (debug build) writes a PNG and a
 /// status line per wallpaper window, so rendering can be checked without Screen Recording permission.
@@ -28,6 +29,22 @@ enum SelfTest {
                     }
                 }
             }
+        }
+    }
+
+    /// `MACWALL_SELFTEST_PROP=<wallpaperId>:<key>=<value>` edits a property through the same path as the
+    /// Properties sheet, and snapshots the sheet's contents.
+    static func editProperties(dir: String) {
+        guard let spec = ProcessInfo.processInfo.environment["MACWALL_SELFTEST_PROP"],
+              let colon = spec.firstIndex(of: ":"), let eq = spec.firstIndex(of: "="),
+              let w = Library.shared.item(String(spec[..<colon])) else { return }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: PropertiesView(wallpaper: w)))
+        window.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            WallpaperManager.shared.setProperty(w, key: String(spec[spec.index(after: colon)..<eq]), value: String(spec[spec.index(after: eq)...]))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            capture(window, to: URL(fileURLWithPath: dir).appendingPathComponent("properties.png"))
         }
     }
 

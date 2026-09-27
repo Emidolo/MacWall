@@ -1,6 +1,7 @@
 import AppKit
 import ServiceManagement
 import Security
+import MacWallKit
 
 enum Quality: String, CaseIterable, Identifiable {
     case low, medium, high
@@ -42,6 +43,8 @@ final class AppSettings: ObservableObject {
     @Published var weAssetsPath: String { didSet { d.set(weAssetsPath, forKey: "weAssetsPath") } }
     var assetRoots: [URL] { weAssetsPath.isEmpty ? [] : [URL(fileURLWithPath: (weAssetsPath as NSString).expandingTildeInPath)] }
     @Published var steamUsername: String { didSet { Keychain.username = steamUsername } }
+    /// Wallpaper id → property key → the user's value (project.json keeps the defaults).
+    @Published var propertyOverrides: [String: [String: Any]] { didSet { d.set(propertyOverrides, forKey: "propertyOverrides") } }
 
     private init() {
         assignments = d.dictionary(forKey: "assignments") as? [String: String] ?? [:]
@@ -53,6 +56,7 @@ final class AppSettings: ObservableObject {
         steamcmdPath = d.string(forKey: "steamcmdPath") ?? ""
         weAssetsPath = d.string(forKey: "weAssetsPath") ?? ""
         steamUsername = Keychain.username ?? ""
+        propertyOverrides = d.dictionary(forKey: "propertyOverrides") as? [String: [String: Any]] ?? [:]
     }
 
     func wallpaperID(forDisplay uuid: String) -> String? {
@@ -67,6 +71,11 @@ final class AppSettings: ObservableObject {
             mirror = true
             assignments[allDisplaysKey] = id
         }
+    }
+
+    /// `general.properties` with the user's edits applied.
+    func propertiesJSON(for w: Wallpaper) -> String {
+        WallpaperProperties(json: w.project.propertiesJSON).mergedJSON(propertyOverrides[w.id] ?? [:])
     }
 
     func applyDockIcon() {
@@ -87,26 +96,28 @@ final class AppSettings: ObservableObject {
 }
 
 /// Stores only the Steam username; steamcmd keeps its own cached session.
+/// The username is the item's account *attribute* with no secret data, so reading it never
+/// decrypts anything and never triggers a Keychain prompt (ad-hoc signed rebuilds would otherwise
+/// ask every time and block launch).
 enum Keychain {
     private static let base: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
-        kSecAttrService as String: "dev.macwall.steam",
-        kSecAttrAccount as String: "username",
+        kSecAttrService as String: "dev.macwall.steam-username",
     ]
 
     static var username: String? {
         get {
             var q = base
-            q[kSecReturnData as String] = true
+            q[kSecReturnAttributes as String] = true
             var out: AnyObject?
-            guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-            return String(data: data, encoding: .utf8)
+            guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess else { return nil }
+            return (out as? [String: Any])?[kSecAttrAccount as String] as? String
         }
         set {
             SecItemDelete(base as CFDictionary)
             guard let newValue, !newValue.isEmpty else { return }
             var q = base
-            q[kSecValueData as String] = Data(newValue.utf8)
+            q[kSecAttrAccount as String] = newValue
             SecItemAdd(q as CFDictionary, nil)
         }
     }
