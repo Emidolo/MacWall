@@ -15,6 +15,7 @@ A native macOS menu-bar app that plays [Wallpaper Engine](https://store.steampow
 - A different wallpaper per display, or one mirrored on all; survives display connect/disconnect and resolution changes.
 - Pauses when a fullscreen (or maximized, ≥95% coverage) window hides the desktop, on sleep, on screen lock, and in Low Power Mode.
 - Quality and FPS-limit settings, launch at login, optional Dock icon. Remembers your wallpapers.
+- Lock screen: macOS draws the lock screen from the system desktop picture, so MacWall sets that to a full-resolution still of the running wallpaper (Settings → *Show wallpaper on the lock screen*, on by default). Your previous desktop picture is remembered and restored when you turn it off.
 
 ## Build
 
@@ -74,6 +75,7 @@ Many scenes also reuse textures that ship inside Wallpaper Engine itself (e.g. p
 - Video wallpapers in formats AVFoundation can't decode (e.g. WebM/VP9 without system support) won't play.
 - Web wallpapers relying on Wallpaper Engine–only APIs beyond those listed above (media integration, `wallpaperRequestRandomFileForProperty`, …) may partially work.
 - File/folder properties (e.g. a custom background image) aren't editable.
+- The lock screen shows a still, not the animation: only Apple's Aerials can animate there. The still is taken ~4 s after a wallpaper starts. The login screen right after a restart can show an older cached picture until you've logged in once.
 - Fullscreen detection polls the window list every 2 s, so pausing can lag by up to 2 s.
 - The FPS limit applies to web and scene wallpapers; videos play at their native frame rate.
 - Web audio played through the Web Audio API ignores the volume slider (only `<video>`/`<audio>` elements follow it).

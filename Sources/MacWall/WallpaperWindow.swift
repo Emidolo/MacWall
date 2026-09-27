@@ -62,6 +62,9 @@ final class WallpaperManager: ObservableObject {
             DispatchQueue.main.async { self?.reload() }
         }.store(in: &bag)
         governor.onChange = { [weak self] in self?.applyPause() }
+        settings.$lockScreenStill.dropFirst().sink { [weak self] on in
+            if on { self?.slots.keys.forEach { self?.captureLockScreenSoon($0) } } else { LockScreen.restore() }
+        }.store(in: &bag)
         #if DEBUG
         SelfTest.runIfRequested { [weak self] in self?.slots.map { ($0.key, $0.value.renderer) } ?? [] }
         #endif
@@ -88,6 +91,7 @@ final class WallpaperManager: ObservableObject {
             window.contentView = renderer.view
             window.orderBack(nil)
             slots[key] = Slot(window: window, renderer: renderer, wallpaperID: wp.id, displayID: screen.displayID)
+            captureLockScreenSoon(key)
         }
         slots.keys.filter { !live.contains($0) }.forEach(remove)
         applyPause()
@@ -106,6 +110,16 @@ final class WallpaperManager: ObservableObject {
         settings.propertyOverrides[w.id] = nil
         SceneSupport.invalidate(w.folder)
         rebuildSoon(w.id)
+    }
+
+    /// Once the wallpaper has had a moment to load/draw, save a still for the lock screen.
+    private func captureLockScreenSoon(_ key: String) {
+        guard let renderer = slots[key]?.renderer else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self, weak renderer] in
+            guard let self, let renderer, self.slots[key]?.renderer === renderer,
+                  let screen = NSScreen.screens.first(where: { $0.uuid == key }) else { return }
+            LockScreen.update(screen: screen, from: renderer)
+        }
     }
 
     private var pendingRebuild: DispatchWorkItem?

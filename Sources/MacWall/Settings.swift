@@ -43,6 +43,10 @@ final class AppSettings: ObservableObject {
     @Published var weAssetsPath: String { didSet { d.set(weAssetsPath, forKey: "weAssetsPath") } }
     var assetRoots: [URL] { weAssetsPath.isEmpty ? [] : [URL(fileURLWithPath: (weAssetsPath as NSString).expandingTildeInPath)] }
     @Published var steamUsername: String { didSet { Keychain.username = steamUsername } }
+    /// Keep the macOS desktop picture (which the lock screen shows) set to a still of the wallpaper.
+    @Published var lockScreenStill: Bool { didSet { d.set(lockScreenStill, forKey: "lockScreenStill") } }
+    /// Display UUID → the desktop picture it had before MacWall replaced it.
+    @Published var originalDesktopImages: [String: String] { didSet { d.set(originalDesktopImages, forKey: "originalDesktopImages") } }
     /// Wallpaper id → property key → the user's value (project.json keeps the defaults).
     @Published var propertyOverrides: [String: [String: Any]] { didSet { d.set(propertyOverrides, forKey: "propertyOverrides") } }
 
@@ -56,6 +60,8 @@ final class AppSettings: ObservableObject {
         steamcmdPath = d.string(forKey: "steamcmdPath") ?? ""
         weAssetsPath = d.string(forKey: "weAssetsPath") ?? ""
         steamUsername = Keychain.username ?? ""
+        lockScreenStill = d.object(forKey: "lockScreenStill") as? Bool ?? true
+        originalDesktopImages = d.dictionary(forKey: "originalDesktopImages") as? [String: String] ?? [:]
         propertyOverrides = d.dictionary(forKey: "propertyOverrides") as? [String: [String: Any]] ?? [:]
     }
 

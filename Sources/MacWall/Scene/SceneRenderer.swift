@@ -420,9 +420,13 @@ final class SceneRenderer: NSObject, WallpaperRenderer, MTKViewDelegate {
         "layers=\(layers.count) effects=\(layers.map(\.effects.count).reduce(0, +)) particles=\(systems.map(\.sim.particles.count)) unsupported=\(unsupported)"
     }
 
-    /// Renders one frame offscreen at 960×540 (for the self-test).
-    func debugSnapshot() -> CGImage? {
-        let w = 960, h = 540
+    /// Renders the current frame offscreen.
+    func snapshot(pixelSize: CGSize, _ done: @escaping (CGImage?) -> Void) {
+        done(render(width: min(Int(pixelSize.width), 8192), height: min(Int(pixelSize.height), 8192)))
+    }
+
+    private func render(width w: Int, height h: Int) -> CGImage? {
+        guard w > 0, h > 0 else { return nil }
         let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: SceneGPU.pixelFormat, width: w, height: h, mipmapped: false)
         d.usage = [.renderTarget, .shaderRead]
         d.storageMode = .managed

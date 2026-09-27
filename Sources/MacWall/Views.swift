@@ -238,6 +238,8 @@ struct SettingsView: View {
             Section("General") {
                 Toggle("Launch at login", isOn: Binding(get: { settings.launchAtLogin }, set: { settings.launchAtLogin = $0 }))
                 Toggle("Show Dock icon", isOn: $settings.showDockIcon)
+                Toggle("Show wallpaper on the lock screen", isOn: $settings.lockScreenStill)
+                    .help("macOS draws the lock screen itself, so MacWall sets a still frame as your desktop picture. Turning this off restores your previous picture.")
                 TextField("steamcmd path (optional)", text: $settings.steamcmdPath, prompt: Text(SteamCMD.searchPaths[0]))
                 TextField("Wallpaper Engine assets folder (optional)", text: $settings.weAssetsPath, prompt: Text("…/wallpaper_engine/assets"))
                     .help("Scenes reuse textures from Wallpaper Engine's own assets folder. Copy it from a Windows install to render them.")

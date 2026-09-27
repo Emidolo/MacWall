@@ -1,6 +1,5 @@
 #if DEBUG
 import AppKit
-import AVFoundation
 import WebKit
 import SwiftUI
 
@@ -56,25 +55,20 @@ enum SelfTest {
     }
 
     private static func snapshot(_ r: WallpaperRenderer, done: @escaping (CGImage?, String) -> Void) {
+        let size = CGSize(width: 960, height: 540)
         switch r {
         case let web as WebRenderer:
             web.webView.evaluateJavaScript("document.body.innerText") { text, _ in
-                web.webView.takeSnapshot(with: nil) { img, _ in
-                    done(img?.cgImage(forProposedRect: nil, context: nil, hints: nil),
-                         "web: \(text ?? "nil") occlusionVisible=\(web.webView.window?.occlusionState.contains(.visible) ?? false)")
-                }
+                r.snapshot(pixelSize: size) { done($0, "web: \(text ?? "nil") occlusionVisible=\(web.webView.window?.occlusionState.contains(.visible) ?? false)") }
             }
         case let video as VideoRenderer:
             let p = video.player
             let status = "video: rate=\(p.rate) time=\(p.currentTime().seconds) status=\(p.currentItem?.status.rawValue ?? -1)"
-            guard let asset = p.currentItem?.asset else { return done(nil, status) }
-            AVAssetImageGenerator(asset: asset).generateCGImageAsynchronously(for: p.currentTime()) { img, _, _ in
-                DispatchQueue.main.async { done(img, status) }
-            }
+            r.snapshot(pixelSize: size) { done($0, status) }
         case let scene as SceneRenderer:
-            done(scene.debugSnapshot(), "scene: \(scene.debugStatus)")
+            r.snapshot(pixelSize: size) { done($0, "scene: \(scene.debugStatus)") }
         default:
-            done(nil, "\(type(of: r))")
+            r.snapshot(pixelSize: size) { done($0, "\(type(of: r))") }
         }
     }
 }

@@ -11,6 +11,8 @@ protocol WallpaperRenderer: AnyObject {
     func stop()
     /// Push one changed property (`{"key": {…, "value": v}}`); false = rebuild the renderer instead.
     func applyUserProperties(_ changeJSON: String) -> Bool
+    /// A still of the current frame, roughly `pixelSize` (used for the lock screen).
+    func snapshot(pixelSize: CGSize, _ done: @escaping (CGImage?) -> Void)
 }
 
 extension WallpaperRenderer {
@@ -52,6 +54,16 @@ final class VideoRenderer: WallpaperRenderer {
     }
 
     func setPaused(_ paused: Bool) { paused ? player.pause() : player.play() }
+
+    func snapshot(pixelSize: CGSize, _ done: @escaping (CGImage?) -> Void) {
+        guard let asset = player.currentItem?.asset else { return done(nil) }
+        let gen = AVAssetImageGenerator(asset: asset)
+        gen.appliesPreferredTrackTransform = true
+        gen.maximumSize = pixelSize
+        gen.generateCGImageAsynchronously(for: player.currentTime()) { image, _, _ in
+            DispatchQueue.main.async { done(image) }
+        }
+    }
 
     func setVolume(_ volume: Float) {
         player.volume = volume
@@ -100,6 +112,10 @@ final class WebRenderer: NSObject, WallpaperRenderer, WKScriptMessageHandler {
         webView.setAllMediaPlaybackSuspended(paused)
     }
 
+    func snapshot(pixelSize: CGSize, _ done: @escaping (CGImage?) -> Void) {
+        webView.takeSnapshot(with: nil) { image, _ in done(image?.cgImage(forProposedRect: nil, context: nil, hints: nil)) }
+    }
+
     func applyUserProperties(_ changeJSON: String) -> Bool {
         webView.evaluateJavaScript("(function (l) { l && l.applyUserProperties && l.applyUserProperties(\(changeJSON)); })(window.wallpaperPropertyListener)")
         return true
@@ -133,4 +149,8 @@ final class ImageRenderer: WallpaperRenderer {
     func setPaused(_ paused: Bool) {}
     func setVolume(_ volume: Float) {}
     func stop() {}
+
+    func snapshot(pixelSize: CGSize, _ done: @escaping (CGImage?) -> Void) {
+        done((view.layer?.contents as? NSImage)?.cgImage(forProposedRect: nil, context: nil, hints: nil))
+    }
 }
