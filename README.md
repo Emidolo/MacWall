@@ -37,7 +37,7 @@ brew install steamcmd
 steamcmd +quit                # first run updates itself; let it finish
 ```
 
-MacWall looks for `steamcmd` in `/opt/homebrew/bin` and `/usr/local/bin`, or at the path you set in Settings. The brew build is Intel-only, so Apple Silicon Macs need Rosetta (`softwareupdate --install-rosetta`).
+MacWall looks for `steamcmd` in `/opt/homebrew/bin` and `/usr/local/bin`, or at the path you set in Settings. It shares `~/Library/Application Support/Steam` with the Steam desktop client if you have that installed.
 
 In the library window choose **Download…**, enter your Steam username and a Workshop URL (`https://steamcommunity.com/sharedfiles/filedetails/?id=…`) or ID. The first time, MacWall asks for your password and Steam Guard code (or tells you to approve the sign-in in the Steam Mobile app) and passes them straight to steamcmd's terminal. Only the username is stored (in the Keychain); after that steamcmd reuses its own cached session.
 
