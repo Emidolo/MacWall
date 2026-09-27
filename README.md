@@ -92,3 +92,7 @@ Scenes:
 `MACWALL_SELFTEST=<dir>` with a debug build (`make app CONFIG=debug`) writes a snapshot and a status line for each wallpaper window plus the library and settings windows — handy for checking rendering without Screen Recording permission.
 
 Layout: `Sources/MacWallKit` holds the pure, unit-tested logic (project.json, Workshop IDs, steamcmd output parsing, the web JS shim, scene formats); `Sources/MacWall` is the app.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Wallpaper Engine and Workshop content belong to their respective owners and are not covered by this license.
