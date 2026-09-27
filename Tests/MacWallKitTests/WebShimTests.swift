@@ -12,9 +12,12 @@ private func page(fps: Int) -> JSContext {
         window.setTimeout = function (cb) { cb(); };
         window.webkit = { messageHandlers: { macwall: { postMessage: function (m) { posted.push(m); } } } };
         function frame() { now += 1000 / 60; var q = frameQueue; frameQueue = []; q.forEach(function (cb) { cb(now); }); }
-        var frames = 0;
+        var frames = 0, captured = null;
+        var document = { addEventListener: function (t, cb, capture) { if (t === 'play' && capture) captured = cb; },
+                         querySelectorAll: function () { return media; } };
+        var media = [{ volume: 1, muted: false }];
         """)
-    js.evaluateScript(WebShim.script(propertiesJSON: #"{"speed":{"type":"slider","value":3}}"#, fps: fps))
+    js.evaluateScript(WebShim.script(propertiesJSON: #"{"speed":{"type":"slider","value":3}}"#, fps: fps, volume: 0))
     js.evaluateScript("(function loop() { frames++; requestAnimationFrame(loop); })();")
     return js
 }
@@ -58,4 +61,13 @@ private func run(_ js: JSContext, frames n: Int) -> Int32 {
     #expect(js.evaluateScript("bins").toInt32() == 128)
     #expect(js.evaluateScript("paused").toBool())
     #expect(js.evaluateScript("posted[0]").toString() == "audio")
+}
+
+@Test func mediaStartsMutedAndFollowsVolume() {
+    let js = page(fps: 0)
+    js.evaluateScript("captured({ target: media[0] })")
+    #expect(js.evaluateScript("media[0].muted").toBool())
+    js.evaluateScript("__macwallVolume(0.4)")
+    #expect(js.evaluateScript("media[0].volume").toDouble() == 0.4)
+    #expect(!js.evaluateScript("media[0].muted").toBool())
 }

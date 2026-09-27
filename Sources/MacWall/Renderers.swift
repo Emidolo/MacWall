@@ -17,7 +17,7 @@ func makeRenderer(for w: Wallpaper, settings s: AppSettings) -> WallpaperRendere
     case .video:
         if let url = w.contentURL { return VideoRenderer(url: url, volume: s.volume, quality: s.quality) }
     case .web:
-        if let url = w.contentURL { return WebRenderer(index: url, folder: w.folder, propertiesJSON: w.project.propertiesJSON, fps: s.fpsLimit) }
+        if let url = w.contentURL { return WebRenderer(index: url, folder: w.folder, propertiesJSON: w.project.propertiesJSON, fps: s.fpsLimit, volume: s.volume) }
     case .scene:
         if let r = SceneRenderer(folder: w.folder, fps: s.fpsLimit, quality: s.quality, assetRoots: s.assetRoots) { return r }
     case .application, .unknown:
@@ -65,13 +65,13 @@ final class WebRenderer: NSObject, WallpaperRenderer, WKScriptMessageHandler {
     var view: NSView { webView }
     private var audioToken: UUID?
 
-    init(index: URL, folder: URL, propertiesJSON: String, fps: Int) {
+    init(index: URL, folder: URL, propertiesJSON: String, fps: Int, volume: Float) {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
         // Many wallpapers XHR/fetch their own assets over file://.
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.userContentController.addUserScript(WKUserScript(
-            source: WebShim.script(propertiesJSON: propertiesJSON, fps: fps),
+            source: WebShim.script(propertiesJSON: propertiesJSON, fps: fps, volume: volume),
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
         webView = WKWebView(frame: .zero, configuration: config)
         super.init()
@@ -95,7 +95,7 @@ final class WebRenderer: NSObject, WallpaperRenderer, WKScriptMessageHandler {
     }
 
     func setVolume(_ volume: Float) {
-        webView.evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.volume=\(volume);m.muted=\(volume == 0)})")
+        webView.evaluateJavaScript("window.__macwallVolume&&__macwallVolume(\(volume))")
     }
 
     func stop() {

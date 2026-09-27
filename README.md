@@ -21,7 +21,7 @@ Requires macOS 14+ and Swift 5.9+ — either Xcode or just the Command Line Tool
 
 ```bash
 make app                      # build/MacWall.app (release, current architecture)
-make app ARCHS="arm64 x86_64" # universal binary
+make app ARCHS="arm64 x86_64" # universal binary (built per arch, merged with lipo)
 make run                      # build and open
 make test                     # unit tests
 ```
@@ -53,7 +53,19 @@ Copy folders from `…\steamapps\workshop\content\431960\` (each contains a `pro
 
 ## Scene support
 
-Scene wallpapers (`scene.pkg`) are rendered by a custom Metal renderer; unsupported features are skipped and the library shows a **Partial** badge. See the Phase 2 section below for what is implemented.
+Scene wallpapers (`scene.pkg`) are rendered by MacWall's own Metal renderer. Anything it can't render is skipped, the rest is drawn, and the library shows a **Partial** badge (hover it for the list).
+
+| Supported | Notes |
+|---|---|
+| `scene.pkg` (PKGV) archives, `.tex` textures | RGBA8888, DXT1/3/5, RG88, R8, LZ4, embedded PNG/JPEG |
+| Image layers | z-order, origin/size/scale/rotation, parenting, alignment, colour, alpha, `normal`/`translucent`/`additive` blending, texture padding crop |
+| User properties | `{"user": …}` bindings resolve against `project.json` defaults |
+| Camera parallax | Follows the mouse, per-layer `parallaxDepth`, smoothing via `cameraparallaxdelay` |
+| Keyframe animation | origin/scale/angles/alpha/colour; loop, mirror, single; step and Bézier keys |
+| Effects | `shake`, `waterripple`, `scroll`, `tint` — native Metal re-implementations |
+| Particles | `boxrandom`/`sphererandom` emitters; lifetime/size/alpha/colour/velocity/rotation initializers; movement, fade, size/alpha/colour change, oscillate operators; instance overrides |
+
+Many scenes also reuse textures that ship inside Wallpaper Engine itself (e.g. particle sprites, the water-ripple normal map). If you have a Windows install, copy its `wallpaper_engine/assets` folder to your Mac and set it under **Settings → Wallpaper Engine assets folder**. Without it, particles fall back to a soft dot and water ripples use procedural waves.
 
 ## Known limitations
 
@@ -62,8 +74,17 @@ Scene wallpapers (`scene.pkg`) are rendered by a custom Metal renderer; unsuppor
 - Web wallpapers relying on Wallpaper Engine–only APIs beyond those listed above (media integration, `wallpaperRequestRandomFileForProperty`, …) may partially work.
 - User property editing isn't exposed yet; `project.json` defaults are used.
 - Fullscreen detection polls the window list every 2 s, so pausing can lag by up to 2 s.
+- The FPS limit applies to web and scene wallpapers; videos play at their native frame rate.
+- Web audio played through the Web Audio API ignores the volume slider (only `<video>`/`<audio>` elements follow it).
+
+Scenes:
+- Wallpaper Engine's shader sources aren't part of the Workshop download, so effects are hand-written Metal equivalents reconstructed from their parameters, not translations of the originals. Only the four effects above exist; others (god rays, blur, bloom, foliage sway, …) are skipped. Their look approximates WE's, and parallax amplitude isn't calibrated against real Wallpaper Engine.
+- Not rendered: perspective (3D) cameras, puppet/skeletal animation, text, sound, lights, 3D models, SceneScript, sprite-sheet/GIF and video textures, particle children, control points, turbulence/vortex operators, rope/trail renderers, audio-reactive effects, bloom/HDR.
+- RG88 textures are read as luminance + alpha; the byte order is disputed between reference implementations.
 
 ## Development
+
+`python3 Tools/make-test-scene.py <dir>` writes a synthetic scene exercising most of the renderer; drop it into the library folder.
 
 `MACWALL_SELFTEST=<dir>` with a debug build (`make app CONFIG=debug`) writes a snapshot and a status line for each wallpaper window plus the library and settings windows — handy for checking rendering without Screen Recording permission.
 

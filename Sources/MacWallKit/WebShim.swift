@@ -3,12 +3,16 @@ import Foundation
 /// Wallpaper Engine's web JavaScript API, injected at document start:
 /// `wallpaperRegisterAudioListener`, `wallpaperPropertyListener.applyUserProperties` /
 /// `applyGeneralProperties` / `setPaused`, plus an rAF wrapper for FPS limiting and pausing.
-/// The host calls `__macwallAudio(bins)` and `__macwallPaused(bool)`.
+/// The host calls `__macwallAudio(bins)`, `__macwallPaused(bool)` and `__macwallVolume(0...1)`.
 public enum WebShim {
-    public static func script(propertiesJSON: String, fps: Int) -> String {
+    public static func script(propertiesJSON: String, fps: Int, volume: Float) -> String {
         """
         (function () {
-          var props = \(propertiesJSON), fps = \(fps), audio = [];
+          var props = \(propertiesJSON), fps = \(fps), volume = \(volume), audio = [];
+          // Media volume follows the app's slider (muted at 0); 'play' doesn't bubble, so capture it.
+          function level(m) { m.volume = volume; m.muted = volume === 0; }
+          document.addEventListener('play', function (e) { if (e.target && 'volume' in e.target) level(e.target); }, true);
+          window.__macwallVolume = function (v) { volume = v; document.querySelectorAll('video,audio').forEach(level); };
           window.wallpaperRegisterAudioListener = function (cb) {
             audio.push(cb);
             window.webkit.messageHandlers.macwall.postMessage('audio');
