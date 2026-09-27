@@ -38,6 +38,9 @@ final class AppSettings: ObservableObject {
         didSet { d.set(showDockIcon, forKey: "showDockIcon"); applyDockIcon() }
     }
     @Published var steamcmdPath: String { didSet { d.set(steamcmdPath, forKey: "steamcmdPath") } }
+    /// Optional copy of Wallpaper Engine's `assets` folder, for textures scenes share with WE.
+    @Published var weAssetsPath: String { didSet { d.set(weAssetsPath, forKey: "weAssetsPath") } }
+    var assetRoots: [URL] { weAssetsPath.isEmpty ? [] : [URL(fileURLWithPath: (weAssetsPath as NSString).expandingTildeInPath)] }
     @Published var steamUsername: String { didSet { Keychain.username = steamUsername } }
 
     private init() {
@@ -48,6 +51,7 @@ final class AppSettings: ObservableObject {
         quality = Quality(rawValue: d.string(forKey: "quality") ?? "") ?? .high
         showDockIcon = d.bool(forKey: "showDockIcon")
         steamcmdPath = d.string(forKey: "steamcmdPath") ?? ""
+        weAssetsPath = d.string(forKey: "weAssetsPath") ?? ""
         steamUsername = Keychain.username ?? ""
     }
 

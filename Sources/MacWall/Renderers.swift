@@ -19,7 +19,7 @@ func makeRenderer(for w: Wallpaper, settings s: AppSettings) -> WallpaperRendere
     case .web:
         if let url = w.contentURL { return WebRenderer(index: url, folder: w.folder, propertiesJSON: w.project.propertiesJSON, fps: s.fpsLimit) }
     case .scene:
-        if let r = SceneRenderer(folder: w.folder, fps: s.fpsLimit, quality: s.quality) { return r }
+        if let r = SceneRenderer(folder: w.folder, fps: s.fpsLimit, quality: s.quality, assetRoots: s.assetRoots) { return r }
     case .application, .unknown:
         break
     }

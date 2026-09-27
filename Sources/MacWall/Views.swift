@@ -86,10 +86,10 @@ struct WallpaperCard: View {
             HStack(spacing: 6) {
                 Text(wallpaper.title).lineLimit(1).font(.callout.weight(.medium))
                 Spacer(minLength: 0)
-                if wallpaper.project.kind == .scene, !SceneSupport.isFullySupported(wallpaper.folder) {
+                if wallpaper.project.kind == .scene, case let missing = SceneSupport.unsupported(wallpaper.folder), !missing.isEmpty {
                     Text("Partial").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
                         .background(.orange.opacity(0.25), in: Capsule())
-                        .help("Uses scene features MacWall can't render yet; the rest is shown.")
+                        .help("Rendered without: " + missing.joined(separator: ", "))
                 }
                 Text(wallpaper.project.kind.rawValue.capitalized).font(.caption2).foregroundStyle(.secondary)
             }
@@ -234,6 +234,9 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: Binding(get: { settings.launchAtLogin }, set: { settings.launchAtLogin = $0 }))
                 Toggle("Show Dock icon", isOn: $settings.showDockIcon)
                 TextField("steamcmd path (optional)", text: $settings.steamcmdPath, prompt: Text(SteamCMD.searchPaths[0]))
+                TextField("Wallpaper Engine assets folder (optional)", text: $settings.weAssetsPath, prompt: Text("…/wallpaper_engine/assets"))
+                    .help("Scenes reuse textures from Wallpaper Engine's own assets folder. Copy it from a Windows install to render them.")
+                    .onSubmit { SceneSupport.invalidate(); WallpaperManager.shared.reload(force: true) }
             }
         }
         .formStyle(.grouped)
