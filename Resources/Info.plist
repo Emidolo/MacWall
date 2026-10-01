@@ -7,6 +7,13 @@
 	<key>CFBundleDisplayName</key><string>MacWall</string>
 	<key>CFBundleExecutable</key><string>MacWall</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key><string>dev.macwall.MacWall</string>
+			<key>CFBundleURLSchemes</key><array><string>macwall</string></array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key><string>0.1.0</string>
 	<key>CFBundleVersion</key><string>1</string>
 	<key>LSMinimumSystemVersion</key><string>14.0</string>

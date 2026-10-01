@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
         manager.reload()
+        Control.start()
         if Library.shared.items.isEmpty { showLibrary() }
         #if DEBUG
         if let dir = ProcessInfo.processInfo.environment["MACWALL_SELFTEST"] {
@@ -39,6 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             SelfTest.editProperties(dir: dir)
         }
         #endif
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        urls.forEach(Control.handle)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {

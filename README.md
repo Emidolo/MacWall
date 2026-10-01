@@ -17,6 +17,20 @@ A native macOS menu-bar app that plays [Wallpaper Engine](https://store.steampow
 - Quality and FPS-limit settings, launch at login, optional Dock icon. Remembers your wallpapers.
 - Lock screen: macOS draws the lock screen from the system desktop picture, so MacWall sets that to a full-resolution still of the running wallpaper (Settings → *Show wallpaper on the lock screen*, on by default). Your previous desktop picture is remembered and restored when you turn it off.
 
+## Controlling MacWall from other apps
+
+MacWall answers `macwall://` URLs, so scripts and other apps can drive it (`open -g "macwall://next"`):
+
+| URL | Does |
+|---|---|
+| `macwall://set?id=<id>[&display=<uuid>]` | Sets a library wallpaper on all displays, or on one |
+| `macwall://next`, `macwall://previous` | Cycles through the library in title order |
+| `macwall://pause`, `macwall://resume`, `macwall://toggle` | Pauses or resumes playback |
+| `macwall://volume?value=0.0-1.0` | Sets the volume |
+| `macwall://open-library` | Opens the library window |
+
+Whenever the wallpaper, pause state or volume changes, MacWall posts the distributed notification `dev.macwall.MacWall.stateChanged` with `assignments`, `mirror`, `volume` and `userPaused` in its `userInfo`. The same keys are in the `dev.macwall.MacWall` defaults domain.
+
 ## Build
 
 Requires macOS 14+ and Swift 5.9+ — either Xcode or just the Command Line Tools (`xcode-select --install`).
